@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GSSC Daily Duty & Site Operations Scheduler</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            brand: {
+              50: '#f0f7ff',
+              100: '#e0effe',
+              500: '#0284c7',
+              600: '#0369a1',
+              700: '#075985',
+              800: '#0c4a6e',
+              900: '#082f49',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Custom scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #f1f5f9; }
+    ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+    .urgent-pulse {
+      animation: pulse-border 2s infinite;
+    }
+    @keyframes pulse-border {
+      0%, 100% { border-color: #ef4444; box-shadow: 0 0 0 1px #ef4444; }
+      50% { border-color: #f87171; box-shadow: 0 0 10px rgba(239, 68, 68, 0.4); }
+    }
+  </style>
+</head>
+<body class="bg-slate-50 text-slate-900 font-sans min-h-screen flex flex-col">
+
+  <!-- Top Navigation Header -->
+  <header class="bg-gradient-to-r from-slate-900 via-brand-900 to-slate-900 text-white shadow-md sticky top-0 z-40 border-b border-slate-700">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo & Title -->
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-lg bg-red-600 flex items-center justify-center font-black text-white text-xl shadow tracking-wider border border-red-400">
+            GSSC
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <h1 class="text-base sm:text-lg font-bold tracking-tight text-white">Daily Duty & Site Scheduler</h1>
+              <span class="px-2 py-0.5 text-xs font-semibold rounded bg-amber-500/20 text-amber-300 border border-amber-500/30">Pro v2.4</span>
+            </div>
+            <p class="text-xs text-slate-300">Gulf Safety & Security Co. Ltd. • Technical Operations Hub</p>
+          </div>
+        </div>
+
+        <!-- Supervisor Badge & Date -->
+        <div class="hidden md:flex items-center space-x-4 text-xs">
+          <div class="text-right">
+            <div class="font-medium text-slate-200">Sanoop Parakulathil Antony (8526)</div>
+            <div class="text-slate-400 flex items-center justify-end space-x-1">
+              <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+              <span>Supervisor Auto-Sign Active</span>
+            </div>
+          </div>
+          <div class="px-3 py-1.5 rounded-md bg-slate-800 border border-slate-700 text-slate-300 font-mono text-center">
+            <span id="headerLiveDate">2026-11-02</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex space-x-1 overflow-x-auto py-2 border-t border-slate-800/80 scrollbar-none text-xs sm:text-sm font-medium">
+        <button id="navTabPlanner" class="tab-btn px-4 py-1.5 rounded-md text-white bg-brand-600 shadow flex items-center space-x-2 whitespace-nowrap">
+          <span>📅 Daily Duty Schedule</span>
+          <span id="tabCountDuty" class="ml-1 px-1.5 py-0.2 rounded-full text-xs bg-brand-800 text-brand-100">0</span>
+        </button>
+        <button id="navTabAddSite" class="tab-btn px-4 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 flex items-center space-x-2 whitespace-nowrap">
+          <span>➕ Add Site (Daytime Order)</span>
+        </button>
+        <button id="navTabOrderedSites" class="tab-btn px-4 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 flex items-center space-x-2 whitespace-nowrap">
+          <span>📋 Daily Ordered List</span>
+          <span id="tabCountOrdered" class="ml-1 px-1.5 py-0.2 rounded-full text-xs bg-slate-700 text-slate-200">0</span>
+        </button>
+        <button id="navTabRoster" class="tab-btn px-4 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 flex items-center space-x-2 whitespace-nowrap">
+          <span>👷 Technicians Roster & Colors</span>
+          <span id="tabCountTechs" class="ml-1 px-1.5 py-0.2 rounded-full text-xs bg-slate-700 text-slate-200">14</span>
+        </button>
+        <button id="navTabSitesArchive" class="tab-btn px-4 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 flex items-center space-x-2 whitespace-nowrap">
+          <span>🏢 Master Sites Directory</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Global Urgent Alert Banner (shown when tomorrow has urgent sites) -->
+  <div id="urgentAlertBar" class="hidden bg-gradient-to-r from-red-600 via-rose-600 to-red-700 text-white px-4 py-2.5 text-xs sm:text-sm shadow-md transition-all">
+    <div class="max-w-7xl mx-auto flex items-center justify-between">
+      <div class="flex items-center space-x-2 font-semibold">
+        <span class="text-base animate-bounce">🚨</span>
+        <span>URGENT SITES NOTIFICATION:</span>
+        <span id="urgentAlertText" class="font-normal">Urgent sites detected for tomorrow! Marked in RED for immediate prioritization.</span>
+      </div>
+      <button id="dismissUrgentAlert" class="text-red-100 hover:text-white underline text-xs">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- Main Content Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+    <!-- ========================================== -->
+    <!-- VIEW 1: DAILY DUTY PLANNER                 -->
+    <!-- ========================================== -->
+    <section id="viewPlanner" class="space-y-6">
+      
+      <!-- Date Bar & Action Controls -->
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div class="flex flex-wrap items-center gap-3">
+          <label for="dutyDatePicker" class="text-sm font-semibold text-slate-700 flex items-center space-x-1.5">
+            <span>Target Duty Date:</span>
+          </label>
+          <div class="flex items-center space-x-2">
+            <button id="btnPrevDay" class="px-2.5 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-100 text-slate-700 text-xs font-medium">◀ Prev</button>
+            <input type="date" id="dutyDatePicker" class="border border-slate-300 rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+            <button id="btnNextDay" class="px-2.5 py-1.5 border border-slate-300 rounded-lg hover:bg-slate-100 text-slate-700 text-xs font-medium">Next ▶</button>
+            <button id="btnSetToday" class="px-2.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium">Today</button>
+            <button id="btnSetTomorrow" class="px-2.5 py-1.5 bg-brand-50 hover:bg-brand-100 text-brand-700 border border-brand-200 rounded-lg text-xs font-semibold">Tomorrow (Duty)</button>
+          </div>
+          <span id="dutyDayOfWeek" class="text-xs px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 font-medium">Monday</span>
+        </div>
+
+        <!-- WhatsApp & Export Action Buttons -->
+        <div class="flex flex-wrap items-center gap-2">
+          <button id="btnCopyWhatsApp" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-2 shadow-sm transition">
+            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12.031 6.172c-3.181 0-5.767 2.586-5.768 5.766-.001 1.298.38 2.27 1.019 3.287l-.711 2.598 2.669-.699c.969.53 1.83.81 2.791.81 3.18 0 5.767-2.587 5.767-5.766.001-3.182-2.585-5.769-5.767-5.796zm-7.794 5.766c.001-4.316 3.509-7.825 7.825-7.825 4.318 0 7.825 3.509 7.825 7.825 0 4.317-3.507 7.825-7.825 7.825-1.328 0-2.576-.345-3.673-.951l-4.148 1.087 1.107-4.041c-.708-1.157-1.111-2.489-1.111-3.92z"/></svg>
+            <span>Copy for WhatsApp</span>
+          </button>
+          <button id="btnOpenAddSiteFromPlanner" class="px-3.5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg font-medium text-xs sm:text-sm flex items-center space-x-1.5 shadow-sm transition">
+            <span>➕ Assign Site</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Mandatory Daily Confirmation & Technician Accountability Banner -->
+      <div id="technicianAccountabilityCard" class="bg-white rounded-xl shadow-sm border border-slate-200 p-4 sm:p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-100 gap-2">
+          <div>
+            <h2 class="text-sm font-bold text-slate-900 flex items-center space-x-2">
+              <span>👥 Technician Daily Confirmation & Roster Accountability</span>
+              <span id="accountabilityStatusBadge" class="text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800 border border-amber-200">Verification Pending</span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">Every technician must be assigned to a site OR have a recorded reason for daily duty clearance.</p>
+          </div>
+          <div class="text-xs text-right">
+            <span class="text-slate-500">Total Active Technicians: </span>
+            <span id="totalTechsCount" class="font-bold text-slate-800">14</span>
+          </div>
+        </div>
+
+        <!-- Technician Grid: Assigned vs Unassigned -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <!-- Assigned Technicians Box -->
+          <div class="bg-slate-50/70 rounded-lg p-3 border border-slate-200">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-semibold text-emerald-700 flex items-center space-x-1">
+                <span class="w-2 h-2 rounded-full bg-emerald-500"></span>
+                <span>Assigned on Duty (<span id="assignedTechsCount">0</span>)</span>
+              </span>
+              <span class="text-[11px] text-slate-400">Scheduled on sites</span>
+            </div>
+            <div id="assignedTechsList" class="flex flex-wrap gap-1.5 min-h-10 items-center">
+              <span class="text-xs text-slate-400 italic">No technicians assigned yet for this date.</span>
+            </div>
+          </div>
+
+          <!-- Unassigned Technicians (Reason Required) Box -->
+          <div class="bg-amber-50/40 rounded-lg p-3 border border-amber-200">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-xs font-semibold text-amber-800 flex items-center space-x-1">
+                <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+                <span>Unassigned Technicians (<span id="unassignedTechsCount">14</span>)</span>
+              </span>
+              <span class="text-[11px] text-red-600 font-medium">* Reason Mandatory</span>
+            </div>
+            <div id="unassignedTechsList" class="space-y-2 max-h-56 overflow-y-auto pr-1">
+              <!-- Dynamically populated rows with reason inputs -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Supervisor Auto-Sign Verification Section -->
+        <div class="mt-4 pt-3 border-t border-slate-100 flex flex-col sm:flex-row sm:items-center justify-between text-xs text-slate-600 gap-2">
+          <div class="flex items-center space-x-2">
+            <div class="w-7 h-7 rounded-full bg-brand-100 text-brand-700 flex items-center justify-center font-bold">SA</div>
+            <div>
+              <div class="font-semibold text-slate-800">Prepared & Auto-Signed by: Sanoop Parakulathil Antony (8526)</div>
+              <div class="text-[11px] text-slate-500">Technical Supervisor / Systems Programmer • Gulf Safety & Security Co. Ltd.</div>
+            </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <span class="text-[11px] px-2.5 py-1 rounded bg-slate-100 text-slate-700 font-mono">Sign-Off: Verified</span>
+            <button id="btnSaveDutySchedule" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg font-medium shadow-sm transition">
+              💾 Save & Confirm Day
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scheduled Sites Cards Container -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h2 class="text-base font-bold text-slate-800 flex items-center space-x-2">
+            <span>Sites Scheduled for Duty</span>
+            <span id="scheduledSitesCountBadge" class="text-xs px-2 py-0.5 rounded-full bg-slate-200 text-slate-700 font-semibold">0 Sites</span>
+          </h2>
+          <div class="flex items-center space-x-3 text-xs">
+            <span class="flex items-center space-x-1 text-red-600 font-semibold">
+              <span class="w-2.5 h-2.5 rounded-full bg-red-600"></span>
+              <span>Urgent Sites (Red Priority)</span>
+            </span>
+            <span class="flex items-center space-x-1 text-slate-500">
+              <span class="w-2.5 h-2.5 rounded-full bg-brand-500"></span>
+              <span>Normal Sites</span>
+            </span>
+          </div>
+        </div>
+
+        <!-- Site Cards Grid / List -->
+        <div id="dutySitesList" class="space-y-3">
+          <!-- Dynamic cards injected here -->
+        </div>
+
+        <!-- Empty State (when no sites scheduled) -->
+        <div id="dutyEmptyState" class="hidden text-center py-12 px-4 bg-white rounded-xl border border-dashed border-slate-300">
+          <div class="text-4xl mb-3">📋</div>
+          <h3 class="text-sm font-bold text-slate-700">No Sites Scheduled for this Date</h3>
+          <p class="text-xs text-slate-500 max-w-sm mx-auto mt-1">Add a site during the daytime or assign existing sites to this date to build the daily duty schedule.</p>
+          <button id="btnEmptyAddSite" class="mt-4 px-4 py-2 bg-brand-600 text-white rounded-lg text-xs font-semibold hover:bg-brand-700 shadow transition">
+            ➕ Add Site for this Date
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 2: ADD SITE DURING DAYTIME            -->
+    <!-- ========================================== -->
+    <section id="viewAddSite" class="hidden space-y-6">
+      <div class="max-w-2xl mx-auto bg-white rounded-xl shadow-sm border border-slate-200 p-6 sm:p-8">
+        <div class="border-b border-slate-100 pb-4 mb-6">
+          <h2 class="text-lg font-bold text-slate-900 flex items-center space-x-2">
+            <span>➕ Add New Site / Daytime Work Order</span>
+          </h2>
+          <p class="text-xs text-slate-500 mt-1">Quickly register a new site during daytime operations, configure schedule date, priority, and assign technicians.</p>
+        </div>
+
+        <form id="formAddSite" class="space-y-4">
+          <!-- Site Name & Client -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="inputSiteName" class="block text-xs font-semibold text-slate-700 mb-1">Site / Project Name *</label>
+              <input type="text" id="inputSiteName" required placeholder="e.g. Al Othman Tower / AMC-204" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+            </div>
+            <div>
+              <label for="inputClientName" class="block text-xs font-semibold text-slate-700 mb-1">Client / Company Name *</label>
+              <input type="text" id="inputClientName" required placeholder="e.g. Al Othman Holding / Aramco" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+            </div>
+          </div>
+
+          <!-- Location & System Type -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="inputLocation" class="block text-xs font-semibold text-slate-700 mb-1">Location / City Area *</label>
+              <input type="text" id="inputLocation" required placeholder="e.g. Al Khobar, Dammam 2nd Ind., Jubail" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+            </div>
+            <div>
+              <label for="selectSystemType" class="block text-xs font-semibold text-slate-700 mb-1">System Type</label>
+              <select id="selectSystemType" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                <option value="Fire Alarm System (FA)">Fire Alarm System (Edwards EST3 / Simplex / Fike)</option>
+                <option value="Fire Fighting / Sprinkler (FF)">Fire Fighting / Sprinkler System (FF)</option>
+                <option value="Clean Agent Suppression (FM-200/Novec/CO2)">Clean Agent Suppression (FM-200/Novec/CO2)</option>
+                <option value="Fire Pump & Hydrant Network">Fire Pump & Hydrant Network</option>
+                <option value="Pre-Action / Deluge System">Pre-Action / Deluge System</option>
+                <option value="VESDA Air Sampling">VESDA Air Sampling</option>
+                <option value="Hydraulic Road Blocker / Barrier">Hydraulic Road Blocker / Barrier</option>
+                <option value="Comprehensive AMC / GMC Inspection">Comprehensive AMC / GMC Inspection</option>
+                <option value="On-Call Emergency / Fault Clearance">On-Call Emergency / Fault Clearance</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Schedule Date & Priority Selection -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-200">
+            <div>
+              <label for="inputScheduleDate" class="block text-xs font-semibold text-slate-700 mb-1">Scheduled Duty Date *</label>
+              <input type="date" id="inputScheduleDate" required class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 font-semibold text-slate-800 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+              <span class="text-[11px] text-slate-500 mt-0.5 block">Can be scheduled for today or any future date.</span>
+            </div>
+            <div>
+              <label class="block text-xs font-semibold text-slate-700 mb-1">Priority Level *</label>
+              <div class="grid grid-cols-2 gap-2 mt-1">
+                <label class="cursor-pointer border border-slate-300 rounded-lg p-2.5 flex items-center space-x-2 bg-white hover:bg-slate-50 has-[:checked]:border-slate-800 has-[:checked]:bg-slate-100">
+                  <input type="radio" name="priorityLevel" value="normal" checked class="text-brand-600 focus:ring-brand-500">
+                  <div>
+                    <div class="text-xs font-bold text-slate-800">Normal</div>
+                    <div class="text-[10px] text-slate-500">Standard Schedule</div>
+                  </div>
+                </label>
+                <label class="cursor-pointer border border-red-300 rounded-lg p-2.5 flex items-center space-x-2 bg-red-50 hover:bg-red-100 has-[:checked]:border-red-600 has-[:checked]:bg-red-100 has-[:checked]:ring-1 has-[:checked]:ring-red-600">
+                  <input type="radio" name="priorityLevel" value="urgent" class="text-red-600 focus:ring-red-500">
+                  <div>
+                    <div class="text-xs font-bold text-red-700">🚨 Urgent</div>
+                    <div class="text-[10px] text-red-600">Red Alert 1-Day Prior</div>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <!-- Shift Window / Time -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label for="selectShiftTime" class="block text-xs font-semibold text-slate-700 mb-1">Shift / Time Window</label>
+              <select id="selectShiftTime" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+                <option value="07:30 - 16:30 (Full Day NWH)">07:30 - 16:30 (Full Day NWH - 8.5h)</option>
+                <option value="07:30 - 12:00 (Morning Shift)">07:30 - 12:00 (Morning Shift)</option>
+                <option value="12:30 - 16:30 (Afternoon Shift)">12:30 - 16:30 (Afternoon Shift)</option>
+                <option value="07:30 - 13:30 (Saturday Shift)">07:30 - 13:30 (Saturday Shift - 5.5h)</option>
+                <option value="16:30 - 19:00 (Single Overtime SOT)">16:30 - 19:00 (Single Overtime SOT)</option>
+                <option value="Emergency On-Call / Immediate">Emergency On-Call / Immediate</option>
+              </select>
+            </div>
+            <div>
+              <label for="inputContactPerson" class="block text-xs font-semibold text-slate-700 mb-1">Site Contact Person & Mobile</label>
+              <input type="text" id="inputContactPerson" placeholder="e.g. Eng. Tariq / 050xxxxxxx" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+            </div>
+          </div>
+
+          <!-- Assign Technicians (Multi-Select with Colors) -->
+          <div>
+            <label class="block text-xs font-semibold text-slate-700 mb-1">Assign Technicians (Color-Coded Badges)</label>
+            <div id="technicianSelectorGrid" class="grid grid-cols-2 sm:grid-cols-3 gap-2 max-h-48 overflow-y-auto p-2 bg-slate-50 border border-slate-200 rounded-lg">
+              <!-- Checkboxes with technician colors injected by JS -->
+            </div>
+          </div>
+
+          <!-- Scope of Work / Notes -->
+          <div>
+            <label for="textareaScopeNotes" class="block text-xs font-semibold text-slate-700 mb-1">Scope of Work / Special Instructions</label>
+            <textarea id="textareaScopeNotes" rows="2" placeholder="e.g. Quarterly AMC maintenance, pump flow test, battery impedance check, replace faulty smoke detector on 3rd floor..." class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-brand-500 focus:outline-none"></textarea>
+          </div>
+
+          <!-- Submit Buttons -->
+          <div class="flex items-center justify-end space-x-3 pt-4 border-t border-slate-100">
+            <button type="button" id="btnCancelAddSite" class="px-4 py-2 border border-slate-300 rounded-lg text-xs font-medium text-slate-700 hover:bg-slate-100">Cancel</button>
+            <button type="submit" class="px-5 py-2 bg-brand-600 hover:bg-brand-700 text-white rounded-lg text-xs font-bold shadow transition">Save & Schedule Site</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 3: DAILY ORDERED SITES (SEPARATE LIST)-->
+    <!-- ========================================== -->
+    <section id="viewOrderedSites" class="hidden space-y-6">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div class="flex flex-col md:flex-row md:items-center justify-between pb-4 border-b border-slate-200 gap-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+              <span>📋 Daily Ordered Sites List</span>
+              <span id="orderedListDateBadge" class="text-xs px-2.5 py-0.5 rounded-full font-mono bg-slate-100 text-slate-700">2026-11-02</span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">Separate dedicated list of all work sites ordered / scheduled for the selected day.</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button id="btnCopyOrderedList" class="px-3.5 py-1.5 bg-slate-800 hover:bg-slate-900 text-white rounded-lg text-xs font-medium flex items-center space-x-1.5 shadow-sm">
+              <span>📋 Copy Ordered List</span>
+            </button>
+            <button id="btnPrintOrderedList" class="px-3.5 py-1.5 border border-slate-300 hover:bg-slate-100 text-slate-700 rounded-lg text-xs font-medium flex items-center space-x-1.5">
+              <span>🖨️ Print / Export</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="flex flex-wrap items-center gap-3 py-3 border-b border-slate-100 text-xs">
+          <span class="font-semibold text-slate-600">Filter By:</span>
+          <button id="filterOrderedAll" class="filter-ordered-btn px-2.5 py-1 rounded-md bg-slate-800 text-white font-medium">All (<span id="countOrderedAll">0</span>)</button>
+          <button id="filterOrderedUrgent" class="filter-ordered-btn px-2.5 py-1 rounded-md bg-red-100 text-red-700 hover:bg-red-200 font-medium">Urgent Only (<span id="countOrderedUrgent">0</span>)</button>
+          <button id="filterOrderedNormal" class="filter-ordered-btn px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium">Normal Priority (<span id="countOrderedNormal">0</span>)</button>
+        </div>
+
+        <!-- Table of Ordered Sites -->
+        <div class="overflow-x-auto mt-4">
+          <table class="min-w-full divide-y divide-slate-200 text-xs">
+            <thead class="bg-slate-50 text-slate-600 uppercase font-semibold">
+              <tr>
+                <th scope="col" class="px-3 py-3 text-left">#</th>
+                <th scope="col" class="px-3 py-3 text-left">Priority</th>
+                <th scope="col" class="px-4 py-3 text-left">Site & Client</th>
+                <th scope="col" class="px-3 py-3 text-left">Location</th>
+                <th scope="col" class="px-3 py-3 text-left">System Type</th>
+                <th scope="col" class="px-3 py-3 text-left">Assigned Technicians</th>
+                <th scope="col" class="px-3 py-3 text-left">Time / Shift</th>
+                <th scope="col" class="px-3 py-3 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="orderedSitesTableBody" class="divide-y divide-slate-100 text-slate-700">
+              <!-- Dynamically rendered rows -->
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Empty state -->
+        <div id="orderedEmptyState" class="hidden text-center py-10 text-slate-500 text-xs">
+          No sites ordered for this date. Use "Add Site (Daytime Order)" to register tasks.
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 4: TECHNICIANS ROSTER & COLORS        -->
+    <!-- ========================================== -->
+    <section id="viewRoster" class="hidden space-y-6">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div class="flex items-center justify-between pb-4 border-b border-slate-200">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+              <span>👷 GSSC Field Technicians Roster & Color Codes</span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">Each technician has a distinct assigned color badge for instant visual recognition in schedules and WhatsApp exports.</p>
+          </div>
+          <div class="text-xs font-semibold px-3 py-1 bg-brand-50 text-brand-700 rounded-full border border-brand-200">
+            14 Active Technicians
+          </div>
+        </div>
+
+        <!-- Roster Grid -->
+        <div id="rosterCardsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-5">
+          <!-- Populated by JS -->
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 5: MASTER SITES DIRECTORY ARCHIVE     -->
+    <!-- ========================================== -->
+    <section id="viewSitesArchive" class="hidden space-y-6">
+      <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between pb-4 border-b border-slate-200 gap-3">
+          <div>
+            <h2 class="text-base font-bold text-slate-900 flex items-center space-x-2">
+              <span>🏢 Master Sites Directory & History</span>
+            </h2>
+            <p class="text-xs text-slate-500 mt-0.5">All daytime orders and recurring AMC sites with visit history and re-scheduling tools.</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <input type="text" id="searchSitesInput" placeholder="Search site, client, or area..." class="text-xs border border-slate-300 rounded-lg px-3 py-1.5 focus:ring-2 focus:ring-brand-500 focus:outline-none">
+          </div>
+        </div>
+
+        <!-- Master Sites List Table -->
+        <div class="overflow-x-auto mt-4">
+          <table class="min-w-full divide-y divide-slate-200 text-xs">
+            <thead class="bg-slate-50 text-slate-600 uppercase font-semibold">
+              <tr>
+                <th scope="col" class="px-3 py-3 text-left">Site Name</th>
+                <th scope="col" class="px-3 py-3 text-left">Client</th>
+                <th scope="col" class="px-3 py-3 text-left">Location</th>
+                <th scope="col" class="px-3 py-3 text-left">System</th>
+                <th scope="col" class="px-3 py-3 text-left">Priority</th>
+                <th scope="col" class="px-3 py-3 text-left">Scheduled Date</th>
+                <th scope="col" class="px-3 py-3 text-right">Quick Re-Schedule</th>
+              </tr>
+            </thead>
+            <tbody id="masterSitesTableBody" class="divide-y divide-slate-100">
+              <!-- Populated by JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ========================================== -->
+  <!-- MODAL: RESCHEDULE SITE DATE                -->
+  <!-- ========================================== -->
+  <div id="modalReschedule" class="hidden fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+    <div class="bg-white rounded-xl shadow-xl max-w-md w-full p-6 border border-slate-200">
+      <h3 class="text-base font-bold text-slate-900 mb-1">Reschedule Site Date</h3>
+      <p id="rescheduleSiteInfo" class="text-xs text-slate-500 mb-4">Site Name • Location</p>
+      
+      <div class="space-y-3">
+        <div>
+          <label for="rescheduleNewDate" class="block text-xs font-semibold text-slate-700 mb-1">New Duty Date</label>
+          <input type="date" id="rescheduleNewDate" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2 font-medium">
+        </div>
+        <div>
+          <label class="block text-xs font-semibold text-slate-700 mb-1">Priority for New Date</label>
+          <select id="reschedulePriority" class="w-full text-sm border border-slate-300 rounded-lg px-3 py-2">
+            <option value="normal">Normal Priority</option>
+            <option value="urgent">🚨 Urgent Priority (Red Flag)</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="flex items-center justify-end space-x-2 mt-6">
+        <button id="btnCancelReschedule" class="px-3 py-1.5 border border-slate-300 text-slate-700 text-xs font-medium rounded-lg hover:bg-slate-100">Cancel</button>
+        <button id="btnConfirmReschedule" class="px-4 py-1.5 bg-brand-600 text-white text-xs font-bold rounded-lg hover:bg-brand-700 shadow">Save Date</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Box -->
+  <div id="toastNotification" class="fixed bottom-5 right-5 z-50 transform translate-y-24 opacity-0 transition-all duration-300 max-w-sm bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl border border-slate-700 flex items-center space-x-3 text-xs">
+    <span id="toastIcon" class="text-lg">✅</span>
+    <div id="toastMessage" class="flex-1 font-medium">Duty schedule copied successfully!</div>
+  </div>
+
+  <!-- Footer -->
+  <footer class="bg-white border-t border-slate-200 py-3 text-center text-xs text-slate-400">
+    Gulf Safety & Security Co. Ltd. (GSSC) • Technical Operations System • Sanoop Antony (8526)
+  </footer>
+
+  <!-- Application Logic -->
+  <script>
+    // -------------------------------------------------------------
+    // GSSC Technician Roster with Fixed Distinct Color Mappings
+    // -------------------------------------------------------------
+    const TECHNICIANS_MASTER = [
+      { id: '8661', name: 'Sakthivel Balasubramanian', code: '8661', blood: 'B+', role: 'Mechanical / FF Tech', colorBg: '#ccfbf1', colorText: '#115e59', colorBorder: '#5eead4', hex: '#0d9488' },
+      { id: '8571', name: 'Prem Bahadur Kumal', code: '8571', blood: 'A+', role: 'Electrical / FA Tech', colorBg: '#e0e7ff', colorText: '#3730a3', colorBorder: '#a5b4fc', hex: '#4f46e5' },
+      { id: '8664', name: 'Rajiv Gandhi Thangamuthu', code: '8664', blood: 'O+', role: 'Electrical / FA Tech', colorBg: '#fef3c7', colorText: '#92400e', colorBorder: '#fcd34d', hex: '#d97706' },
+      { id: '8632', name: 'Muhammad Atif Mehmood', code: '8632', blood: 'O+', role: 'Electrical / FA Tech', colorBg: '#d1fae5', colorText: '#065f46', colorBorder: '#6ee7b7', hex: '#059669' },
+      { id: '8683', name: 'Atif Pervez Ahmed', code: '8683', blood: 'O+', role: 'Telecom & Low Current Tech', colorBg: '#e0f2fe', colorText: '#075985', colorBorder: '#7dd3fc', hex: '#0284c7' },
+      { id: '8593', name: 'Laxman Bhattarai', code: '8593', blood: 'A+', role: 'Electrical / FA Tech', colorBg: '#ede9fe', colorText: '#5b21b6', colorBorder: '#c4b5fd', hex: '#7c3aed' },
+      { id: '8646', name: 'Muhammad Ismail Najam Ud Din', code: '8646', blood: 'AB+', role: 'Mechanical / FF Tech', colorBg: '#ffe4e6', colorText: '#9f1239', colorBorder: '#fda4af', hex: '#e11d48' },
+      { id: '8649', name: 'Umar Shafiq Muhammad', code: '8649', blood: 'O+', role: 'Electrical / FA Tech', colorBg: '#cffafe', colorText: '#155e75', colorBorder: '#67e8f9', hex: '#0891b2' },
+      { id: '8608', name: 'Shihab Naduvila Parambu', code: '8608', blood: 'O+', role: 'Electrical / FA Tech', colorBg: '#ffedd5', colorText: '#9a3412', colorBorder: '#fdba74', hex: '#ea580c' },
+      { id: '8535', name: 'Abdul Rahimankutty', code: '8535', blood: 'O+', role: 'Driver / Logistics Support', colorBg: '#ecfccb', colorText: '#3f6212', colorBorder: '#bef264', hex: '#65a30d' },
+      { id: '8705', name: 'Ibrahim Alarbash', code: '8705', blood: 'O+', role: 'Field Tech', colorBg: '#fce7f3', colorText: '#9d174d', colorBorder: '#f472b6', hex: '#db2777' },
+      { id: '1130481565', name: 'Bader Alshahri', code: '1130481565', blood: 'A+', role: 'Electrical / FA Tech', colorBg: '#f3e8ff', colorText: '#6b21a8', colorBorder: '#d8b4fe', hex: '#9333ea' },
+      { id: '1145545289', name: 'Abdullah Khalid Alyousef', code: '1145545289', blood: 'AB+', role: 'Field Tech', colorBg: '#fae8ff', colorText: '#86198f', colorBorder: '#f0abfc', hex: '#c026d3' },
+      { id: 'hussain', name: 'Hussain', code: 'Tech', blood: 'O+', role: 'Field Tech', colorBg: '#f1f5f9', colorText: '#334155', colorBorder: '#94a3b8', hex: '#475569' }
+    ];
+
+    // Standard Absence Reasons for Unassigned Technicians
+    const ABSENCE_REASONS = [
+      'Annual Leave / Vacation',
+      'Emergency On-Call Duty (Standby)',
+      'Weekly Off / Rest Day',
+      'Sick Leave / Medical',
+      'GSSC Workshop & Panel Fabrication',
+      'Office / Documentation & Invoicing Support',
+      'Client Survey / Meeting with Engineer'
+    ];
+
+    // Initial Demo Sites (pre-populated with realistic GSSC sites in Eastern Province)
+    const INITIAL_SITES = [
+      {
+        id: 'site-1',
+        name: 'Al Othman Tower Complex',
+        client: 'Al Othman Holding Co.',
+        location: 'Al Khobar, King Fahd Road',
+        system: 'Fire Alarm System (FA)',
+        priority: 'urgent',
+        date: getTomorrowDateStr(),
+        shift: '07:30 - 16:30 (Full Day NWH)',
+        contact: 'Eng. Mansoor (055-123-4567)',
+        scope: 'Main EST3 fire alarm panel loop 2 earth fault clearance & quarterly detector sensitivity audit.',
+        assignedTechIds: ['8571', '8664'] // Prem & Rajiv
+      },
+      {
+        id: 'site-2',
+        name: 'Al Rushaid Construction Camp',
+        client: 'Al Rushaid Group',
+        location: 'Dammam 2nd Industrial City',
+        system: 'Fire Pump & Hydrant Network',
+        priority: 'normal',
+        date: getTomorrowDateStr(),
+        shift: '07:30 - 16:30 (Full Day NWH)',
+        contact: 'Safety Officer Salem (050-987-6543)',
+        scope: 'Quarterly flow test of diesel & electric pumps, pressure relief valve servicing.',
+        assignedTechIds: ['8661', '8646'] // Sakthivel & Ismail
+      },
+      {
+        id: 'site-3',
+        name: 'SABIC Data Center Building 4',
+        client: 'SABIC Agri-Nutrients',
+        location: 'Jubail Industrial City',
+        system: 'Clean Agent Suppression (FM-200/Novec/CO2)',
+        priority: 'urgent',
+        date: getTomorrowDateStr(),
+        shift: '07:30 - 16:30 (Full Day NWH)',
+        contact: 'Eng. Farhan (054-332-1100)',
+        scope: 'FM-200 cylinder pressure gauge verification, actuator test, and abort station check.',
+        assignedTechIds: ['8632', '8649'] // Muhammad Atif & Umar Shafiq
+      },
+      {
+        id: 'site-4',
+        name: 'GSSC Central Logistics & Store',
+        client: 'GSSC Internal',
+        location: 'Dammam Warehouse',
+        system: 'Comprehensive AMC / GMC Inspection',
+        priority: 'normal',
+        date: getTomorrowDateStr(),
+        shift: '07:30 - 16:30 (Full Day NWH)',
+        contact: 'Subair (Procurement)',
+        scope: 'Material staging and equipment delivery coordination.',
+        assignedTechIds: ['8535'] // Abdul Rahimankutty (Driver)
+      }
+    ];
+
+    // -------------------------------------------------------------
+    // State Management
+    // -------------------------------------------------------------
+    let appSites = [];
+    let unassignedReasons = {}; // Key: "date_techId", Value: reason text
+    let selectedDate = getTomorrowDateStr();
+    let siteToReschedule = null;
+
+    // Helper Date Functions
+    function getTodayDateStr() {
+      const d = new Date();
+      return d.toISOString().split('T')[0];
+    }
+
+    function getTomorrowDateStr() {
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      return d.toISOString().split('T')[0];
+    }
+
+    function formatDateFriendly(dateStr) {
+      if (!dateStr) return '';
+      const parts = dateStr.split('-');
+      if (parts.length !== 3) return dateStr;
+      const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      return d.toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' });
+    }
+
+    function getDayOfWeekName(dateStr) {
+      const parts = dateStr.split('-');
+      const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      return d.toLocaleDateString('en-US', { weekday: 'long' });
+    }
+
+    // Load from LocalStorage or initialize
+    function initData() {
+      try {
+        const storedSites = localStorage.getItem('gssc_duty_sites');
+        if (storedSites) {
+          appSites = JSON.parse(storedSites);
+        } else {
+          appSites = INITIAL_SITES;
+          saveSites();
+        }
+
+        const storedReasons = localStorage.getItem('gssc_duty_unassigned_reasons');
+        if (storedReasons) {
+          unassignedReasons = JSON.parse(storedReasons);
+        }
+      } catch (e) {
+        console.warn('Storage read failed:', e);
+        appSites = INITIAL_SITES;
+      }
+    }
+
+    function saveSites() {
+      try {
+        localStorage.setItem('gssc_duty_sites', JSON.stringify(appSites));
+      } catch (e) {
+        console.warn('Storage write failed:', e);
+      }
+    }
+
+    function saveReasons() {
+      try {
+        localStorage.setItem('gssc_duty_unassigned_reasons', JSON.stringify(unassignedReasons));
+      } catch (e) {
+        console.warn('Storage write failed:', e);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // UI Helpers: Colors & Badges
+    // -------------------------------------------------------------
+    function getTech(id) {
+      return TECHNICIANS_MASTER.find(t => t.id === id) || {
+        id: id,
+        name: 'Technician',
+        role: 'Field Tech',
+        colorBg: '#f1f5f9',
+        colorText: '#334155',
+        colorBorder: '#cbd5e1',
+        hex: '#64748b'
+      };
+    }
+
+    function createTechBadge(tech, isSmall = false) {
+      const sizeClass = isSmall ? 'text-[10px] px-1.5 py-0.5' : 'text-xs px-2.5 py-1';
+      return `<span class="inline-flex items-center rounded-md font-semibold border ${sizeClass}" style="background-color: ${tech.colorBg}; color: ${tech.colorText}; border-color: ${tech.colorBorder};">
+        <span class="w-1.5 h-1.5 rounded-full mr-1.5 inline-block" style="background-color: ${tech.hex};"></span>
+        ${tech.name} <span class="ml-1 opacity-75 font-mono text-[9px]">(${tech.code})</span>
+      </span>`;
+    }
+
+    // -------------------------------------------------------------
+    // Navigation / Tab Switching
+    // -------------------------------------------------------------
+    const tabs = [
+      { btnId: 'navTabPlanner', viewId: 'viewPlanner' },
+      { btnId: 'navTabAddSite', viewId: 'viewAddSite' },
+      { btnId: 'navTabOrderedSites', viewId: 'viewOrderedSites' },
+      { btnId: 'navTabRoster', viewId: 'viewRoster' },
+      { btnId: 'navTabSitesArchive', viewId: 'viewSitesArchive' },
+    ];
+
+    function switchTab(targetViewId) {
+      tabs.forEach(t => {
+        const viewEl = document.getElementById(t.viewId);
+        const btnEl = document.getElementById(t.btnId);
+        if (t.viewId === targetViewId) {
+          viewEl.classList.remove('hidden');
+          btnEl.className = 'tab-btn px-4 py-1.5 rounded-md text-white bg-brand-600 shadow flex items-center space-x-2 whitespace-nowrap';
+        } else {
+          viewEl.classList.add('hidden');
+          btnEl.className = 'tab-btn px-4 py-1.5 rounded-md text-slate-300 hover:text-white hover:bg-slate-800 flex items-center space-x-2 whitespace-nowrap';
+        }
+      });
+      renderCurrentView(targetViewId);
+    }
+
+    function renderCurrentView(viewId) {
+      if (viewId === 'viewPlanner') renderPlanner();
+      if (viewId === 'viewOrderedSites') renderOrderedSites();
+      if (viewId === 'viewRoster') renderRoster();
+      if (viewId === 'viewSitesArchive') renderMasterSites();
+    }
+
+    // -------------------------------------------------------------
+    // VIEW 1: DAILY DUTY PLANNER RENDERING
+    // -------------------------------------------------------------
+    function renderPlanner() {
+      document.getElementById('dutyDatePicker').value = selectedDate;
+      document.getElementById('dutyDayOfWeek').textContent = getDayOfWeekName(selectedDate);
+      document.getElementById('headerLiveDate').textContent = selectedDate;
+
+      // Filter sites scheduled for selected date
+      const daysSites = appSites.filter(s => s.date === selectedDate);
+      document.getElementById('tabCountDuty').textContent = daysSites.length;
+      document.getElementById('scheduledSitesCountBadge').textContent = `${daysSites.length} Site${daysSites.length === 1 ? '' : 's'}`;
+
+      // Check urgent sites for tomorrow alert bar
+      checkUrgentSitesAlert();
+
+      // Collect all assigned technician IDs for this day
+      const assignedTechIdSet = new Set();
+      daysSites.forEach(s => {
+        (s.assignedTechIds || []).forEach(tid => assignedTechIdSet.add(tid));
+      });
+
+      // Render Assigned Technicians List
+      const assignedContainer = document.getElementById('assignedTechsList');
+      assignedContainer.innerHTML = '';
+      document.getElementById('assignedTechsCount').textContent = assignedTechIdSet.size;
+
+      if (assignedTechIdSet.size === 0) {
+        assignedContainer.innerHTML = '<span class="text-xs text-slate-400 italic">No technicians assigned yet for this date.</span>';
+      } else {
+        assignedTechIdSet.forEach(tid => {
+          const tech = getTech(tid);
+          assignedContainer.innerHTML += createTechBadge(tech);
+        });
+      }
+
+      // Render Unassigned Technicians (Mandatory Accountability)
+      const unassignedContainer = document.getElementById('unassignedTechsList');
+      unassignedContainer.innerHTML = '';
+      const unassignedTechs = TECHNICIANS_MASTER.filter(t => !assignedTechIdSet.has(t.id));
+      document.getElementById('unassignedTechsCount').textContent = unassignedTechs.length;
+
+      let allReasonsFilled = true;
+
+      if (unassignedTechs.length === 0) {
+        unassignedContainer.innerHTML = '<div class="text-xs text-emerald-700 bg-emerald-50 p-2 rounded border border-emerald-200">✅ 100% of technicians are allocated on site duty!</div>';
+        const badge = document.getElementById('accountabilityStatusBadge');
+        badge.className = 'text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200';
+        badge.textContent = 'Full Roster Verified';
+      } else {
+        unassignedTechs.forEach(tech => {
+          const reasonKey = `${selectedDate}_${tech.id}`;
+          const currentReason = unassignedReasons[reasonKey] || '';
+          if (!currentReason.trim()) {
+            allReasonsFilled = false;
+          }
+
+          const row = document.createElement('div');
+          row.className = 'flex flex-col sm:flex-row sm:items-center justify-between p-2 rounded bg-white border border-slate-200 gap-2 text-xs';
+          row.innerHTML = `
+            <div class="flex items-center space-x-2">
+              <span class="w-2 h-2 rounded-full" style="background-color: ${tech.hex}"></span>
+              <span class="font-bold text-slate-800">${tech.name}</span>
+              <span class="text-[10px] text-slate-400">(${tech.code})</span>
+            </div>
+            <div class="flex items-center space-x-1.5 flex-1 max-w-sm justify-end">
+              <select data-techid="${tech.id}" class="select-unassigned-reason text-[11px] border border-amber-300 rounded px-2 py-1 bg-amber-50/50 text-slate-800 focus:outline-none focus:ring-1 focus:ring-brand-500 w-full">
+                <option value="">-- Select Absence Reason --</option>
+                ${ABSENCE_REASONS.map(r => `<option value="${r}" ${currentReason === r ? 'selected' : ''}>${r}</option>`).join('')}
+              </select>
+            </div>
+          `;
+          unassignedContainer.appendChild(row);
+        });
+
+        // Add event listeners to unassigned reason selectors
+        unassignedContainer.querySelectorAll('.select-unassigned-reason').forEach(sel => {
+          sel.addEventListener('change', (e) => {
+            const tid = e.target.getAttribute('data-techid');
+            const val = e.target.value;
+            const rKey = `${selectedDate}_${tid}`;
+            unassignedReasons[rKey] = val;
+            saveReasons();
+            renderPlanner();
+            showToast('Absence reason updated');
+          });
+        });
+
+        const badge = document.getElementById('accountabilityStatusBadge');
+        if (allReasonsFilled) {
+          badge.className = 'text-xs px-2 py-0.5 rounded-full font-semibold bg-emerald-100 text-emerald-800 border border-emerald-200';
+          badge.textContent = 'All Reasons Verified';
+        } else {
+          badge.className = 'text-xs px-2 py-0.5 rounded-full font-semibold bg-amber-100 text-amber-800 border border-amber-200';
+          badge.textContent = `${unassignedTechs.length} Technicians Need Reason`;
+        }
+      }
+
+      // Render Site Cards
+      const sitesContainer = document.getElementById('dutySitesList');
+      const emptyState = document.getElementById('dutyEmptyState');
+      sitesContainer.innerHTML = '';
+
+      if (daysSites.length === 0) {
+        emptyState.classList.remove('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+
+        // Sort: Urgent sites first!
+        daysSites.sort((a, b) => (b.priority === 'urgent' ? 1 : 0) - (a.priority === 'urgent' ? 1 : 0));
+
+        daysSites.forEach((site, index) => {
+          const isUrgent = site.priority === 'urgent';
+          const card = document.createElement('div');
+          
+          // Urgent sites marked in RED with distinct border and alert background
+          card.className = `rounded-xl shadow-sm border p-4 sm:p-5 transition ${
+            isUrgent 
+              ? 'bg-red-50/40 border-red-400 urgent-pulse' 
+              : 'bg-white border-slate-200 hover:border-slate-300'
+          }`;
+
+          const techBadgesHtml = (site.assignedTechIds || []).map(tid => {
+            const t = getTech(tid);
+            return createTechBadge(t);
+          }).join(' ');
+
+          card.innerHTML = `
+            <div class="flex flex-col sm:flex-row sm:items-start justify-between gap-3 pb-3 border-b ${isUrgent ? 'border-red-200' : 'border-slate-100'}">
+              <div class="space-y-1">
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-xs font-mono font-bold text-slate-400">#${index + 1}</span>
+                  <h3 class="text-base font-bold text-slate-900">${site.name}</h3>
+                  ${isUrgent 
+                    ? '<span class="px-2.5 py-0.5 text-xs font-black rounded-full bg-red-600 text-white flex items-center space-x-1 shadow-sm"><span class="animate-ping w-1.5 h-1.5 rounded-full bg-white mr-1 inline-block"></span>🚨 URGENT</span>' 
+                    : '<span class="px-2 py-0.5 text-xs font-medium rounded-full bg-slate-100 text-slate-600">Standard</span>'
+                  }
+                  <span class="text-xs font-semibold px-2 py-0.5 rounded bg-brand-50 text-brand-700 border border-brand-200">${site.system}</span>
+                </div>
+                <div class="text-xs text-slate-600 flex flex-wrap items-center gap-x-4 gap-y-1">
+                  <span>🏢 <strong>Client:</strong> ${site.client}</span>
+                  <span>📍 <strong>Location:</strong> ${site.location}</span>
+                  <span>⏰ <strong>Shift:</strong> ${site.shift || '07:30 - 16:30'}</span>
+                </div>
+              </div>
+
+              <!-- Action Buttons -->
+              <div class="flex items-center space-x-1.5 self-end sm:self-start">
+                <button data-siteid="${site.id}" class="btn-reschedule-site px-2.5 py-1 text-xs font-semibold bg-white border border-slate-300 hover:bg-slate-100 rounded text-slate-700 shadow-sm flex items-center space-x-1">
+                  <span>📅 Reschedule</span>
+                </button>
+                <button data-siteid="${site.id}" class="btn-delete-site px-2 py-1 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded border border-rose-200">
+                  <span>🗑️</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Technicians & Scope Block -->
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
+              <div>
+                <span class="font-semibold text-slate-700 block mb-1.5">Assigned Technicians (${(site.assignedTechIds || []).length}):</span>
+                <div class="flex flex-wrap gap-1.5">
+                  ${techBadgesHtml || '<span class="text-amber-600 italic">No technician assigned yet</span>'}
+                </div>
+              </div>
+              <div>
+                <span class="font-semibold text-slate-700 block mb-1">Task Scope / Notes:</span>
+                <p class="text-slate-600 bg-white/70 p-2 rounded border border-slate-200 text-xs">${site.scope || 'Regular quarterly maintenance inspection & testing.'}</p>
+                ${site.contact ? `<p class="text-[11px] text-slate-500 mt-1">📞 Contact: ${site.contact}</p>` : ''}
+              </div>
+            </div>
+          `;
+
+          sitesContainer.appendChild(card);
+        });
+
+        // Attach Reschedule and Delete Listeners
+        sitesContainer.querySelectorAll('.btn-reschedule-site').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const sid = btn.getAttribute('data-siteid');
+            openRescheduleModal(sid);
+          });
+        });
+
+        sitesContainer.querySelectorAll('.btn-delete-site').forEach(btn => {
+          btn.addEventListener('click', (e) => {
+            const sid = btn.getAttribute('data-siteid');
+            deleteSite(sid);
+          });
+        });
+      }
+    }
+
+    // -------------------------------------------------------------
+    // URGENT SITES ALERT (Marked in Red 1 Day Before)
+    // -------------------------------------------------------------
+    function checkUrgentSitesAlert() {
+      const tomorrow = getTomorrowDateStr();
+      const tomorrowUrgent = appSites.filter(s => s.date === tomorrow && s.priority === 'urgent');
+      const urgentBar = document.getElementById('urgentAlertBar');
+      const alertText = document.getElementById('urgentAlertText');
+
+      if (tomorrowUrgent.length > 0) {
+        alertText.innerHTML = `<strong>${tomorrowUrgent.length} Urgent Site(s)</strong> scheduled for tomorrow (${tomorrow})! Review red priority tags.`;
+        urgentBar.classList.remove('hidden');
+      } else {
+        urgentBar.classList.add('hidden');
+      }
+    }
+
+    // -------------------------------------------------------------
+    // VIEW 2: ADD SITE DURING DAYTIME
+    // -------------------------------------------------------------
+    function renderTechnicianSelector() {
+      const container = document.getElementById('technicianSelectorGrid');
+      container.innerHTML = '';
+
+      TECHNICIANS_MASTER.forEach(tech => {
+        const item = document.createElement('label');
+        item.className = 'cursor-pointer p-1.5 rounded border border-slate-200 flex items-center space-x-2 bg-white hover:bg-slate-50 text-xs';
+        item.innerHTML = `
+          <input type="checkbox" name="assignTech" value="${tech.id}" class="rounded text-brand-600 focus:ring-brand-500">
+          <div class="truncate">
+            <span class="inline-block w-2 h-2 rounded-full mr-1" style="background-color: ${tech.hex}"></span>
+            <span class="font-medium text-slate-800">${tech.name.split(' ')[0]}</span>
+            <span class="text-[10px] text-slate-400">(${tech.code})</span>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    document.getElementById('formAddSite').addEventListener('submit', (e) => {
+      e.preventDefault();
+
+      const name = document.getElementById('inputSiteName').value.trim();
+      const client = document.getElementById('inputClientName').value.trim();
+      const location = document.getElementById('inputLocation').value.trim();
+      const system = document.getElementById('selectSystemType').value;
+      const date = document.getElementById('inputScheduleDate').value;
+      const shift = document.getElementById('selectShiftTime').value;
+      const contact = document.getElementById('inputContactPerson').value.trim();
+      const scope = document.getElementById('textareaScopeNotes').value.trim();
+      
+      const priorityRadio = document.querySelector('input[name="priorityLevel"]:checked');
+      const priority = priorityRadio ? priorityRadio.value : 'normal';
+
+      const selectedTechIds = [];
+      document.querySelectorAll('#technicianSelectorGrid input[name="assignTech"]:checked').forEach(cb => {
+        selectedTechIds.push(cb.value);
+      });
+
+      const newSite = {
+        id: 'site-' + Date.now(),
+        name,
+        client,
+        location,
+        system,
+        date,
+        priority,
+        shift,
+        contact,
+        scope,
+        assignedTechIds: selectedTechIds
+      };
+
+      appSites.push(newSite);
+      saveSites();
+
+      showToast(`Site "${name}" scheduled successfully!`);
+      document.getElementById('formAddSite').reset();
+      document.getElementById('inputScheduleDate').value = selectedDate;
+
+      // Switch to planner showing that date
+      selectedDate = date;
+      switchTab('navTabPlanner');
+    });
+
+    document.getElementById('btnCancelAddSite').addEventListener('click', () => {
+      switchTab('navTabPlanner');
+    });
+
+    // -------------------------------------------------------------
+    // VIEW 3: DAILY ORDERED SITES (SEPARATE LIST)
+    // -------------------------------------------------------------
+    let orderedFilter = 'all';
+
+    function renderOrderedSites() {
+      document.getElementById('orderedListDateBadge').textContent = selectedDate;
+      const daysSites = appSites.filter(s => s.date === selectedDate);
+
+      // Counts
+      const urgentCount = daysSites.filter(s => s.priority === 'urgent').length;
+      const normalCount = daysSites.filter(s => s.priority !== 'urgent').length;
+
+      document.getElementById('countOrderedAll').textContent = daysSites.length;
+      document.getElementById('countOrderedUrgent').textContent = urgentCount;
+      document.getElementById('countOrderedNormal').textContent = normalCount;
+      document.getElementById('tabCountOrdered').textContent = daysSites.length;
+
+      let filtered = daysSites;
+      if (orderedFilter === 'urgent') filtered = daysSites.filter(s => s.priority === 'urgent');
+      if (orderedFilter === 'normal') filtered = daysSites.filter(s => s.priority !== 'urgent');
+
+      const tbody = document.getElementById('orderedSitesTableBody');
+      const emptyState = document.getElementById('orderedEmptyState');
+      tbody.innerHTML = '';
+
+      if (filtered.length === 0) {
+        emptyState.classList.remove('hidden');
+      } else {
+        emptyState.classList.add('hidden');
+        filtered.forEach((site, index) => {
+          const isUrgent = site.priority === 'urgent';
+          const tr = document.createElement('tr');
+          tr.className = isUrgent ? 'bg-red-50/60 font-medium' : 'hover:bg-slate-50';
+
+          const techBadges = (site.assignedTechIds || []).map(tid => {
+            const t = getTech(tid);
+            return createTechBadge(t, true);
+          }).join(' ');
+
+          tr.innerHTML = `
+            <td class="px-3 py-3 font-mono font-bold text-slate-400">${index + 1}</td>
+            <td class="px-3 py-3">
+              ${isUrgent 
+                ? '<span class="px-2 py-0.5 rounded text-[10px] font-black bg-red-600 text-white uppercase tracking-wider">🚨 Urgent</span>' 
+                : '<span class="px-2 py-0.5 rounded text-[10px] font-medium bg-slate-200 text-slate-700">Normal</span>'}
+            </td>
+            <td class="px-4 py-3">
+              <div class="font-bold text-slate-900">${site.name}</div>
+              <div class="text-[11px] text-slate-500">${site.client}</div>
+            </td>
+            <td class="px-3 py-3">${site.location}</td>
+            <td class="px-3 py-3"><span class="px-2 py-0.5 rounded bg-brand-50 text-brand-700 border border-brand-200 text-[11px]">${site.system}</span></td>
+            <td class="px-3 py-3"><div class="flex flex-wrap gap-1">${techBadges || '<span class="text-amber-600 italic">None</span>'}</div></td>
+            <td class="px-3 py-3 font-mono text-[11px]">${site.shift || '07:30 - 16:30'}</td>
+            <td class="px-3 py-3 text-right">
+              <button data-siteid="${site.id}" class="btn-reschedule-ordered text-brand-600 hover:text-brand-800 font-semibold text-xs mr-2">Reschedule</button>
+              <button data-siteid="${site.id}" class="btn-delete-ordered text-rose-600 hover:text-rose-800 text-xs">Delete</button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+
+        tbody.querySelectorAll('.btn-reschedule-ordered').forEach(b => {
+          b.addEventListener('click', () => openRescheduleModal(b.getAttribute('data-siteid')));
+        });
+        tbody.querySelectorAll('.btn-delete-ordered').forEach(b => {
+          b.addEventListener('click', () => deleteSite(b.getAttribute('data-siteid')));
+        });
+      }
+    }
+
+    // Filter Buttons for Ordered List
+    document.getElementById('filterOrderedAll').addEventListener('click', () => {
+      orderedFilter = 'all';
+      updateFilterButtons('filterOrderedAll');
+      renderOrderedSites();
+    });
+    document.getElementById('filterOrderedUrgent').addEventListener('click', () => {
+      orderedFilter = 'urgent';
+      updateFilterButtons('filterOrderedUrgent');
+      renderOrderedSites();
+    });
+    document.getElementById('filterOrderedNormal').addEventListener('click', () => {
+      orderedFilter = 'normal';
+      updateFilterButtons('filterOrderedNormal');
+      renderOrderedSites();
+    });
+
+    function updateFilterButtons(activeId) {
+      ['filterOrderedAll', 'filterOrderedUrgent', 'filterOrderedNormal'].forEach(id => {
+        const btn = document.getElementById(id);
+        if (id === activeId) {
+          btn.className = 'filter-ordered-btn px-2.5 py-1 rounded-md bg-slate-800 text-white font-medium';
+        } else {
+          btn.className = 'filter-ordered-btn px-2.5 py-1 rounded-md bg-slate-100 text-slate-700 hover:bg-slate-200 font-medium';
+        }
+      });
+    }
+
+    // -------------------------------------------------------------
+    // VIEW 4: TECHNICIAN ROSTER & COLOR LEGEND
+    // -------------------------------------------------------------
+    function renderRoster() {
+      const container = document.getElementById('rosterCardsGrid');
+      container.innerHTML = '';
+
+      TECHNICIANS_MASTER.forEach(tech => {
+        const card = document.createElement('div');
+        card.className = 'p-4 rounded-xl border shadow-sm transition hover:shadow-md';
+        card.style.backgroundColor = tech.colorBg;
+        card.style.borderColor = tech.colorBorder;
+
+        card.innerHTML = `
+          <div class="flex items-start justify-between">
+            <div class="flex items-center space-x-2.5">
+              <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white shadow-sm" style="background-color: ${tech.hex}">
+                ${tech.name.split(' ').map(n=>n[0]).slice(0,2).join('')}
+              </div>
+              <div>
+                <h4 class="font-bold text-sm" style="color: ${tech.colorText}">${tech.name}</h4>
+                <div class="text-[11px] font-mono text-slate-600">ID: ${tech.code} • Blood: ${tech.blood}</div>
+              </div>
+            </div>
+            <span class="w-3.5 h-3.5 rounded-full border border-white shadow-sm" style="background-color: ${tech.hex}"></span>
+          </div>
+
+          <div class="mt-3 pt-2.5 border-t border-slate-200/60 flex items-center justify-between text-xs">
+            <span class="font-medium text-slate-700">${tech.role}</span>
+            <span class="px-2 py-0.5 rounded font-mono text-[10px] bg-white/80 border border-slate-200 text-slate-600">Unique Color</span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    // -------------------------------------------------------------
+    // VIEW 5: MASTER SITES DIRECTORY
+    // -------------------------------------------------------------
+    function renderMasterSites(searchQuery = '') {
+      const tbody = document.getElementById('masterSitesTableBody');
+      tbody.innerHTML = '';
+
+      let sites = [...appSites];
+      if (searchQuery.trim()) {
+        const q = searchQuery.toLowerCase();
+        sites = sites.filter(s => 
+          s.name.toLowerCase().includes(q) || 
+          s.client.toLowerCase().includes(q) || 
+          s.location.toLowerCase().includes(q)
+        );
+      }
+
+      sites.sort((a, b) => b.date.localeCompare(a.date));
+
+      sites.forEach(site => {
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-slate-50 text-xs';
+        tr.innerHTML = `
+          <td class="px-3 py-3 font-bold text-slate-900">${site.name}</td>
+          <td class="px-3 py-3 text-slate-600">${site.client}</td>
+          <td class="px-3 py-3 text-slate-600">${site.location}</td>
+          <td class="px-3 py-3 text-slate-600">${site.system}</td>
+          <td class="px-3 py-3">
+            ${site.priority === 'urgent' 
+              ? '<span class="px-2 py-0.5 rounded text-[10px] font-black bg-red-600 text-white">🚨 Urgent</span>' 
+              : '<span class="px-2 py-0.5 rounded text-[10px] bg-slate-100 text-slate-600">Normal</span>'}
+          </td>
+          <td class="px-3 py-3 font-mono font-medium text-slate-800">${site.date}</td>
+          <td class="px-3 py-3 text-right">
+            <button data-siteid="${site.id}" class="btn-reschedule-master text-xs font-semibold px-2.5 py-1 rounded bg-slate-100 hover:bg-brand-50 hover:text-brand-700 border border-slate-200">
+              Reschedule
+            </button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+
+      tbody.querySelectorAll('.btn-reschedule-master').forEach(b => {
+        b.addEventListener('click', () => openRescheduleModal(b.getAttribute('data-siteid')));
+      });
+    }
+
+    document.getElementById('searchSitesInput').addEventListener('input', (e) => {
+      renderMasterSites(e.target.value);
+    });
+
+    // -------------------------------------------------------------
+    // RESCHEDULE MODAL LOGIC
+    // -------------------------------------------------------------
+    function openRescheduleModal(siteId) {
+      const site = appSites.find(s => s.id === siteId);
+      if (!site) return;
+      siteToReschedule = site;
+      document.getElementById('rescheduleSiteInfo').textContent = `${site.name} • ${site.location} (${site.client})`;
+      document.getElementById('rescheduleNewDate').value = site.date;
+      document.getElementById('reschedulePriority').value = site.priority || 'normal';
+      document.getElementById('modalReschedule').classList.remove('hidden');
+    }
+
+    function closeRescheduleModal() {
+      siteToReschedule = null;
+      document.getElementById('modalReschedule').classList.add('hidden');
+    }
+
+    document.getElementById('btnCancelReschedule').addEventListener('click', closeRescheduleModal);
+
+    document.getElementById('btnConfirmReschedule').addEventListener('click', () => {
+      if (!siteToReschedule) return;
+      const newDate = document.getElementById('rescheduleNewDate').value;
+      const newPriority = document.getElementById('reschedulePriority').value;
+
+      if (!newDate) {
+        showToast('Please select a valid date!');
+        return;
+      }
+
+      siteToReschedule.date = newDate;
+      siteToReschedule.priority = newPriority;
+      saveSites();
+
+      showToast(`Site rescheduled to ${newDate}`);
+      closeRescheduleModal();
+
+      // Re-render
+      renderPlanner();
+      renderOrderedSites();
+      renderMasterSites();
+    });
+
+    function deleteSite(siteId) {
+      appSites = appSites.filter(s => s.id !== siteId);
+      saveSites();
+      showToast('Site removed from schedule');
+      renderPlanner();
+      renderOrderedSites();
+      renderMasterSites();
+    }
+
+    // -------------------------------------------------------------
+    // WHATSAPP COPY FUNCTIONALITY (Formatted text with colors & icons)
+    // -------------------------------------------------------------
+    function generateWhatsAppDutyText() {
+      const daysSites = appSites.filter(s => s.date === selectedDate);
+      const friendlyDate = formatDateFriendly(selectedDate);
+      const dayName = getDayOfWeekName(selectedDate);
+
+      let text = `*══════════════════════════════*\n`;
+      text += `*GULF SAFETY & SECURITY CO. LTD. (GSSC)*\n`;
+      text += `*DAILY TECHNICIAN DUTY SCHEDULE*\n`;
+      text += `*══════════════════════════════*\n`;
+      text += `📅 *Date:* ${friendlyDate} (${dayName})\n`;
+      text += `👷 *Technical Supervisor:* Sanoop Parakulathil Antony (8526)\n`;
+      text += `📌 *Status:* Daily Duty Verified & Auto-Signed\n`;
+      text += `*══════════════════════════════*\n\n`;
+
+      // 1. Urgent Sites Section
+      const urgentSites = daysSites.filter(s => s.priority === 'urgent');
+      if (urgentSites.length > 0) {
+        text += `🚨 *URGENT SITES (HIGH PRIORITY):*\n`;
+        urgentSites.forEach((site, i) => {
+          text += `🔴 *${i + 1}. ${site.name.toUpperCase()}*\n`;
+          text += `   • *Client:* ${site.client}\n`;
+          text += `   • *Location:* ${site.location}\n`;
+          text += `   • *System:* ${site.system}\n`;
+          text += `   • *Shift:* ${site.shift || '07:30 - 16:30'}\n`;
+          const techNames = (site.assignedTechIds || []).map(tid => {
+            const t = getTech(tid);
+            return `[${t.name} (${t.code})]`;
+          }).join(', ');
+          text += `   • *Technicians:* ${techNames || 'Not Assigned'}\n`;
+          if (site.scope) text += `   • *Scope:* ${site.scope}\n`;
+          if (site.contact) text += `   • *Contact:* ${site.contact}\n`;
+          text += `\n`;
+        });
+      }
+
+      // 2. Standard Sites Section
+      const normalSites = daysSites.filter(s => s.priority !== 'urgent');
+      if (normalSites.length > 0) {
+        text += `📋 *SCHEDULED SITES:*\n`;
+        normalSites.forEach((site, i) => {
+          text += `🔹 *${i + 1}. ${site.name}*\n`;
+          text += `   • *Client:* ${site.client}\n`;
+          text += `   • *Location:* ${site.location}\n`;
+          text += `   • *System:* ${site.system}\n`;
+          text += `   • *Shift:* ${site.shift || '07:30 - 16:30'}\n`;
+          const techNames = (site.assignedTechIds || []).map(tid => {
+            const t = getTech(tid);
+            return `[${t.name} (${t.code})]`;
+          }).join(', ');
+          text += `   • *Technicians:* ${techNames || 'Not Assigned'}\n`;
+          if (site.scope) text += `   • *Scope:* ${site.scope}\n`;
+          text += `\n`;
+        });
+      }
+
+      if (daysSites.length === 0) {
+        text += `ℹ️ *No sites scheduled on this date.*\n\n`;
+      }
+
+      // 3. Technician Accountability & Unassigned Reasons
+      const assignedTechIdSet = new Set();
+      daysSites.forEach(s => (s.assignedTechIds || []).forEach(tid => assignedTechIdSet.add(tid)));
+      const unassigned = TECHNICIANS_MASTER.filter(t => !assignedTechIdSet.has(t.id));
+
+      text += `*──────────────────────────────*\n`;
+      text += `👥 *TECHNICIAN ATTENDANCE & STATUS:*\n`;
+      text += `• *On-Site Duty (${assignedTechIdSet.size} Techs):* `;
+      const assignedNames = Array.from(assignedTechIdSet).map(tid => getTech(tid).name.split(' ')[0]).join(', ');
+      text += `${assignedNames || 'None'}\n`;
+
+      if (unassigned.length > 0) {
+        text += `• *Not on Site Duty (${unassigned.length} Techs):*\n`;
+        unassigned.forEach(t => {
+          const reasonKey = `${selectedDate}_${t.id}`;
+          const reason = unassignedReasons[reasonKey] || 'Duty Pending / Unspecified';
+          text += `   ▫️ ${t.name} (${t.code}): *${reason}*\n`;
+        });
+      } else {
+        text += `• *Full Attendance:* All 14 technicians active on duty sites.\n`;
+      }
+
+      text += `\n*──────────────────────────────*\n`;
+      text += `✍️ *Official Sign-Off:* Sanoop Parakulathil Antony\n`;
+      text += `Technical Supervisor • Gulf Safety & Security Co. Ltd.\n`;
+      text += `*══════════════════════════════*`;
+
+      return text;
+    }
+
+    // Copy to clipboard helper
+    function copyTextToClipboard(text, successMsg) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(() => {
+          showToast(successMsg);
+        }).catch(() => {
+          fallbackCopyText(text, successMsg);
+        });
+      } else {
+        fallbackCopyText(text, successMsg);
+      }
+    }
+
+    function fallbackCopyText(text, successMsg) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        showToast(successMsg);
+      } catch (err) {
+        showToast('Failed to copy to clipboard.');
+      }
+      document.body.removeChild(textarea);
+    }
+
+    document.getElementById('btnCopyWhatsApp').addEventListener('click', () => {
+      const waText = generateWhatsAppDutyText();
+      copyTextToClipboard(waText, '📋 WhatsApp duty schedule copied to clipboard!');
+    });
+
+    document.getElementById('btnCopyOrderedList').addEventListener('click', () => {
+      const daysSites = appSites.filter(s => s.date === selectedDate);
+      let text = `*GSSC SITES ORDERED LIST - ${selectedDate}*\n\n`;
+      daysSites.forEach((s, i) => {
+        text += `${i + 1}. [${s.priority === 'urgent' ? 'URGENT' : 'NORMAL'}] ${s.name} - ${s.location} (${s.system})\n`;
+      });
+      copyTextToClipboard(text, '📋 Ordered sites list copied!');
+    });
+
+    document.getElementById('btnPrintOrderedList').addEventListener('click', () => {
+      window.print();
+    });
+
+    // -------------------------------------------------------------
+    // Toast Notification Display
+    // -------------------------------------------------------------
+    let toastTimeout = null;
+    function showToast(msg) {
+      const toast = document.getElementById('toastNotification');
+      const msgEl = document.getElementById('toastMessage');
+      msgEl.textContent = msg;
+
+      toast.classList.remove('translate-y-24', 'opacity-0');
+      toast.classList.add('translate-y-0', 'opacity-100');
+
+      if (toastTimeout) clearTimeout(toastTimeout);
+      toastTimeout = setTimeout(() => {
+        toast.classList.remove('translate-y-0', 'opacity-100');
+        toast.classList.add('translate-y-24', 'opacity-0');
+      }, 3000);
+    }
+
+    // -------------------------------------------------------------
+    // Date Bar Controls
+    // -------------------------------------------------------------
+    document.getElementById('dutyDatePicker').addEventListener('change', (e) => {
+      selectedDate = e.target.value;
+      renderPlanner();
+      renderOrderedSites();
+    });
+
+    document.getElementById('btnPrevDay').addEventListener('click', () => {
+      const parts = selectedDate.split('-');
+      const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      d.setDate(d.getDate() - 1);
+      selectedDate = d.toISOString().split('T')[0];
+      renderPlanner();
+      renderOrderedSites();
+    });
+
+    document.getElementById('btnNextDay').addEventListener('click', () => {
+      const parts = selectedDate.split('-');
+      const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+      d.setDate(d.getDate() + 1);
+      selectedDate = d.toISOString().split('T')[0];
+      renderPlanner();
+      renderOrderedSites();
+    });
+
+    document.getElementById('btnSetToday').addEventListener('click', () => {
+      selectedDate = getTodayDateStr();
+      renderPlanner();
+      renderOrderedSites();
+    });
+
+    document.getElementById('btnSetTomorrow').addEventListener('click', () => {
+      selectedDate = getTomorrowDateStr();
+      renderPlanner();
+      renderOrderedSites();
+    });
+
+    document.getElementById('btnSaveDutySchedule').addEventListener('click', () => {
+      saveSites();
+      saveReasons();
+      showToast('Duty schedule and reasons saved successfully!');
+    });
+
+    document.getElementById('dismissUrgentAlert').addEventListener('click', () => {
+      document.getElementById('urgentAlertBar').classList.add('hidden');
+    });
+
+    document.getElementById('btnOpenAddSiteFromPlanner').addEventListener('click', () => {
+      document.getElementById('inputScheduleDate').value = selectedDate;
+      switchTab('navTabAddSite');
+    });
+
+    document.getElementById('btnEmptyAddSite').addEventListener('click', () => {
+      document.getElementById('inputScheduleDate').value = selectedDate;
+      switchTab('navTabAddSite');
+    });
+
+    // Tab buttons click listeners
+    tabs.forEach(t => {
+      document.getElementById(t.btnId).addEventListener('click', () => switchTab(t.viewId));
+    });
+
+    // -------------------------------------------------------------
+    // Initialization on Page Load
+    // -------------------------------------------------------------
+    window.addEventListener('DOMContentLoaded', () => {
+      initData();
+      selectedDate = getTomorrowDateStr();
+      document.getElementById('inputScheduleDate').value = selectedDate;
+      renderTechnicianSelector();
+      renderPlanner();
+      renderRoster();
+      renderOrderedSites();
+      renderMasterSites();
+    });
+  </script>
+</body>
+</html>
